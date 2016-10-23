@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>SignUp</title>
+	<style>
+		.error{
+			color: red;
+		}
+	</style>
+</head>
+<body>
+	
+
+<p><b>SignUp</b></p>
+<form method="post">
+<label>
+	Username
+	<input type="text" name="username" value='{{username_value}}'>
+	<span class="error">{{username_error}}</span>
+</label>
+<br>
+<label>
+	Password  
+	<input name="pass" type="password" value='{{pass_value}}'>
+	<span class="error">{{pass_error}}</span>
+</label>
+<br>
+<label>
+	Verify Password
+	<input name="verify_pass" type="password" value='{{verifypass_value}}'>
+	<span class="error">{{verifypass_error}}</span>
+</label>
+<br>
+<label>
+	Email(optional)
+	<input name="email" type="text" value='{{email_value}}'>
+	<span class="error">{{email_error}}</span>
+</label>
+<br>
+<input type="submit">
+</form>
+
+</body>
+</html>

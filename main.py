@@ -14,12 +14,43 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+import re
 import webapp2
 import jinja2
 import os
 
 jinja_env = jinja2.Environment(autoescape=True,
                                loader=jinja2.FileSystemLoader(os.path.join(os.path.dirname(__file__), 'templates')))
+
+
+USER_RE = re.compile(r"^[a-zA-Z0-9_-]{3,20}$")
+
+
+def valid_username(username):
+    if username and USER_RE.match(username):
+        return True
+    else:
+        return False
+
+
+PASS_RE = re.compile(r"^.{3,20}$")
+
+
+def valid_pass(passw):
+    if passw and PASS_RE.match(passw):
+        return True
+    else:
+        return False
+
+EMAIL_RE = re.compile(r"^[\S]+@[\S]+.[\S]+$")
+
+
+def valid_email(email):
+    if email and EMAIL_RE.match(email):
+        return True
+    else:
+        return False
+
 
 
 class Handler(webapp2.RequestHandler):
@@ -51,7 +82,56 @@ class RotHandler(Handler):
         self.render("rot13.html", text=rot13)
 
 
+class SignupHandler(Handler):
+    def get(self):
+        self.render("signup.html")
+
+    def post(self):
+        is_error = False
+        username = self.request.get("username")
+        passw = self.request.get("pass")
+        verify_pass = self.request.get("verify_pass")
+        email = self.request.get("email")
+        username_error = ""
+        pass_error = ""
+        verifypass_error = ""
+        email_error = ""
+        if (username):
+            if (valid_username(username) == False):
+                is_error = True
+                username_error = "Thats not a valid username"
+        if (passw):
+            if (valid_pass(passw) == False):
+                is_error = True
+                pass_error = "Invalid Pass"
+        if (valid_pass(passw) == True):
+            if (verify_pass != passw):
+                is_error = True
+                verifypass_error = "Passwords Don't match"
+
+        if (email):
+            if (valid_email(email) == False):
+                is_error = True
+                email_error = "Invalid Email address"
+
+        if (is_error == True):
+            self.render("signup.html", username_value=username, username_error=username_error, pass_value=passw,
+                        pass_error=pass_error, verifypass_value=verify_pass,
+                        verifypass_error=verifypass_error, email_value=email, email_error=email_error)
+        else:
+            self.redirect("/verifed?username=" + username)
+
+
+class VerifiedHandler(Handler):
+    def get(self):
+        username = self.request.get("username")
+        if(valid_username(username)):
+            self.render("verified.html",username = username)
+
+
 app = webapp2.WSGIApplication([
     ('/', MainHandler),
-    ('/rot13', RotHandler)
+    ('/rot13', RotHandler),
+    ('/signup', SignupHandler),
+    ('/verifed', VerifiedHandler)
 ], debug=True)
