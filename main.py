@@ -15,11 +15,43 @@
 # limitations under the License.
 #
 import webapp2
+import jinja2
+import os
 
-class MainHandler(webapp2.RequestHandler):
+jinja_env = jinja2.Environment(autoescape=True,
+                               loader=jinja2.FileSystemLoader(os.path.join(os.path.dirname(__file__), 'templates')))
+
+
+class Handler(webapp2.RequestHandler):
+    def write(self, *a, **kw):
+        self.response.out.write(*a, **kw)
+
+    def render_str(self, template, **params):
+        t = jinja_env.get_template(template)
+        return t.render(params)
+
+    def render(self, template, **kw):
+        self.write(self.render_str(template, **kw))
+
+
+class MainHandler(Handler):
     def get(self):
         self.response.write('Hello world!')
 
+
+class RotHandler(Handler):
+    def get(self):
+        self.render("rot13.html")
+
+    def post(self):
+        rot13 = ''
+        g = self.request.get("text")
+        if g:
+            rot13 = g.encode('rot13')
+        self.render("rot13.html", text=rot13)
+
+
 app = webapp2.WSGIApplication([
-    ('/', MainHandler)
+    ('/', MainHandler),
+    ('/rot13', RotHandler)
 ], debug=True)
