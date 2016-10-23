@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Ascii Chan</title>
+    <style type="text/css">
+        .error{
+            color : red;
+        }
+    </style>
+</head>
+<body>
+<h2>ASCII CHAN</h2>
+
+<form method="post">
+    <label>
+        <div>
+            Title
+        </div>
+        <input type="text" name="title" value="{{title}}">
+    </label>
+    <label>
+        <div>
+            Art
+        </div>
+        <textarea name="art" id="art_text_area" cols="30" rows="10">{{art}}</textarea>
+    </label>
+    <br>
+    <input type="submit">
+</form>
+<div class="error">{{error}}</div>
+{%for an_art in arts%}
+<div class="art">
+    <div class="title">
+        {{an_art.title}}
+    </div>
+    <div class="art">
+        {{an_art.art}}
+    </div>
+</div>
+{%endfor%}
+</body>
+</html>

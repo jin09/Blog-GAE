@@ -18,6 +18,7 @@ import re
 import webapp2
 import jinja2
 import os
+from google.appengine.ext import db
 
 jinja_env = jinja2.Environment(autoescape=True,
                                loader=jinja2.FileSystemLoader(os.path.join(os.path.dirname(__file__), 'templates')))
@@ -52,6 +53,17 @@ def valid_email(email):
         return False
 
 
+class Art(db.Model):
+    title = db.StringProperty(required=True)
+    art = db.TextProperty(required=True)
+    created = db.DateTimeProperty(auto_now_add=True)
+
+
+class Post(db.Model):
+    title = db.StringProperty(required=True)
+    content = db.TextProperty(required=True)
+    time = db.DateTimeProperty(auto_now_add=True)
+
 
 class Handler(webapp2.RequestHandler):
     def write(self, *a, **kw):
@@ -66,8 +78,12 @@ class Handler(webapp2.RequestHandler):
 
 
 class MainHandler(Handler):
+    def render_blog(self):
+        posts = db.GqlQuery("select * from Post order by time desc limit 10")
+        self.render("blog.html", list_of_post=posts)
+
     def get(self):
-        self.response.write('Hello world!')
+        self.render_blog()
 
 
 class RotHandler(Handler):
@@ -80,6 +96,40 @@ class RotHandler(Handler):
         if g:
             rot13 = g.encode('rot13')
         self.render("rot13.html", text=rot13)
+
+
+class PermalinkHandler(Handler):
+    def get(self,post_id):
+        key = db.Key.from_path('Post', int(post_id))
+        #print key
+        post = db.get(key)
+        #print post
+
+        if post:
+            self.render("permalink.html", post=post)
+        else:
+            self.error(404)
+
+
+class NewPostHandler(Handler):
+    def render_form(self,title="",content="",error=""):
+        self.render("newpost.html", error=error, content_value=content, title_value=title)
+
+    def get(self):
+        self.render_form()
+
+    def post(self):
+        title = self.request.get("title")
+        content = self.request.get("content")
+
+        if title and content:
+            p = Post(title=title, content=content)
+            p.put()
+            self.redirect("/%s" % str(p.key().id()))
+
+        else:
+            error = "Both fields are necessary"
+            self.render_form(title=title, content=content, error=error)
 
 
 class SignupHandler(Handler):
@@ -129,9 +179,33 @@ class VerifiedHandler(Handler):
             self.render("verified.html",username = username)
 
 
+class AsciiChanHandler(Handler):
+
+    def render_front(self, title="", art="", error=""):
+        arts = db.GqlQuery("select * from Art order by created desc")
+        self.render("asciichan.html", title=title, error=error, art=art, arts=arts)
+
+    def get(self):
+        self.render_front()
+
+    def post(self):
+        title = self.request.get("title")
+        asciiart = self.request.get("art")
+        if title and asciiart:
+            a = Art(title=title, art=asciiart)
+            a.put()
+            self.redirect("/asciichan")
+        else:
+            error = "WE NEED BOTH TITLE AND ART"
+            self.render_front(title, asciiart, error)
+
+
 app = webapp2.WSGIApplication([
     ('/', MainHandler),
     ('/rot13', RotHandler),
     ('/signup', SignupHandler),
-    ('/verifed', VerifiedHandler)
+    ('/verifed', VerifiedHandler),
+    ('/asciichan', AsciiChanHandler),
+    ('/([0-9]+)', PermalinkHandler),
+    ('/newpost', NewPostHandler)
 ], debug=True)

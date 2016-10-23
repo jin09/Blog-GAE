@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>New Post</title>
+    <style type="text/css">
+        .error{
+            color: red;
+        }
+    </style>
+</head>
+<body>
+<h1>Enter New Post Here !!!</h1>
+
+<form method="post">
+    <label>
+        <div><h3>Title</h3></div>
+        <div><input type="text" name="title" value="{{title_value}}"></div>
+    </label>
+    <label>
+        <div><h3>Content</h3></div>
+        <div><textarea name="content" id="c" cols="30" rows="10">{{content_value}}</textarea></div>
+    </label>
+    <input type="submit">
+</form>
+<span class="error">{{error}}</span>
+</body>
+</html>

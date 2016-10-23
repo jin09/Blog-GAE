@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>BLOG</title>
+</head>
+<body>
+<h1>BLOG</h1>
+<br><br>
+{%for i in list_of_post%}
+<div class="post">
+<div class="title"><h3>{{i.title}}</h3></div>
+<p class="content">{{i.content}}</p>
+    <hr>
+</div>
+{%endfor%}
+</body>
+</html>
