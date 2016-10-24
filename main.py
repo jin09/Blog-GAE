@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+import json
 import random
 import string
 import urllib2
@@ -27,9 +28,7 @@ import hmac
 from google.appengine.ext import db
 import hashlib
 
-
 SECRET = "bLah!bLaH|SecreT|Key!!"
-
 
 jinja_env = jinja2.Environment(autoescape=True,
                                loader=jinja2.FileSystemLoader(os.path.join(os.path.dirname(__file__), 'templates')))
@@ -40,7 +39,7 @@ def make_salt():
 
 
 def make_user_cookie(user_val):
-    return "%s|%s" % (str(user_val),str(hmac.new(SECRET,str(user_val)).hexdigest()))
+    return "%s|%s" % (str(user_val), str(hmac.new(SECRET, str(user_val)).hexdigest()))
 
 
 def check_valid_cookie(test_cookie):
@@ -51,14 +50,14 @@ def check_valid_cookie(test_cookie):
         return False
 
 
-def create_pass_hash(pwd,name):
+def create_pass_hash(pwd, name):
     salt = make_salt()
-    h = hashlib.sha256(name+pwd+salt).hexdigest()
-    return "%s,%s" % (h,salt)
+    h = hashlib.sha256(name + pwd + salt).hexdigest()
+    return "%s,%s" % (h, salt)
 
 
-def check_valid_pass(pass_val,pass_hash,username):
-    h = hashlib.sha256(username+pass_val+pass_hash.split(',')[1]).hexdigest()
+def check_valid_pass(pass_val, pass_hash, username):
+    h = hashlib.sha256(username + pass_val + pass_hash.split(',')[1]).hexdigest()
     if h == pass_hash.split(',')[0]:
         return True
     else:
@@ -71,9 +70,10 @@ class user_table(db.Model):
     email = db.StringProperty
 
     @classmethod
-    def by_name(cls,name):
+    def by_name(cls, name):
         u = user_table.all().filter('name=', name).get()
         return u
+
 
 USER_RE = re.compile(r"^[a-zA-Z0-9_-]{3,20}$")
 
@@ -93,6 +93,7 @@ def valid_pass(passw):
         return True
     else:
         return False
+
 
 EMAIL_RE = re.compile(r"^[\S]+@[\S]+.[\S]+$")
 
@@ -150,11 +151,11 @@ class RotHandler(Handler):
 
 
 class PermalinkHandler(Handler):
-    def get(self,post_id):
+    def get(self, post_id):
         key = db.Key.from_path('Post', int(post_id))
-        #print key
+        # print key
         post = db.get(key)
-        #print post
+        # print post
 
         if post:
             self.render("permalink.html", post=post)
@@ -163,7 +164,7 @@ class PermalinkHandler(Handler):
 
 
 class NewPostHandler(Handler):
-    def render_form(self,title="",content="",error=""):
+    def render_form(self, title="", content="", error=""):
         self.render("newpost.html", error=error, content_value=content, title_value=title)
 
     def get(self):
@@ -253,7 +254,7 @@ class SignupHandler(Handler):
 
 class WelcomeHandler(Handler):
     def get(self):
-        user_id = self.request.cookies.get("user_id","0")
+        user_id = self.request.cookies.get("user_id", "0")
         if user_id == "0":
             self.redirect('/')
         if check_valid_cookie(user_id) == True:
@@ -266,8 +267,9 @@ class WelcomeHandler(Handler):
 
 
 class LoginHandler(Handler):
-    def render_form(self,username_value="", username_error="", pass_val="", pass_error=""):
-        self.render("login.html", username_value=username_value, username_error=username_error, pass_value=pass_val, pass_error=pass_error)
+    def render_form(self, username_value="", username_error="", pass_val="", pass_error=""):
+        self.render("login.html", username_value=username_value, username_error=username_error, pass_value=pass_val,
+                    pass_error=pass_error)
 
     def get(self):
         self.render_form()
@@ -297,18 +299,18 @@ class LoginHandler(Handler):
             username_error = "Invalid Username"
 
         if is_error == True:
-            self.render_form(username,username_error,passw)
+            self.render_form(username, username_error, passw)
 
         else:
             if passw:
                 actual_pass = test_global.pw_hash
-                ans = check_valid_pass(passw,actual_pass,username)
+                ans = check_valid_pass(passw, actual_pass, username)
                 if ans == False:
                     pass_error = "Password does'nt match !!"
                     is_error = True
 
             if is_error == True:
-                self.render_form(username,username_error,passw,pass_error)
+                self.render_form(username, username_error, passw, pass_error)
             else:
                 id = test_global.key().id()
                 cookie = make_user_cookie(id)
@@ -325,12 +327,11 @@ class LogoutHandler(Handler):
 class VerifiedHandler(Handler):
     def get(self):
         username = self.request.get("username")
-        if(valid_username(username)):
-            self.render("verified.html",username = username)
+        if (valid_username(username)):
+            self.render("verified.html", username=username)
 
 
 class AsciiChanHandler(Handler):
-
     def render_front(self, title="", art="", error=""):
         arts = db.GqlQuery("select * from Art order by created desc")
         self.render("asciichan.html", title=title, error=error, art=art, arts=arts)
@@ -418,6 +419,43 @@ class AsciiChan2Handler(Handler):
             self.render_front(title=title, art=art, error=error)
 
 
+class BlogToJSONHandler(Handler):
+    def get(self):
+        posts = db.GqlQuery("select * from Post order by time desc limit 10")
+        dict = {}
+        time_frmt = '%c'
+        index = 1
+        for i in posts:
+            inner_dict = {}
+            inner_dict["title"] = i.title
+            inner_dict["content"] = i.content
+            inner_dict["time"] = i.time.strftime(time_frmt)
+            dict[str(index)] = inner_dict
+            index += 1
+        json_text = json.dumps(dict)
+        self.response.headers['Content-Type'] = 'application/json; charset=UTF-8'
+        self.write(json_text)
+
+
+class PermalinkToJSONHandler(Handler):
+    def get(self, post_id):
+        key = db.Key.from_path('Post', int(post_id))
+        # print key
+        post = db.get(key)
+        # print post
+        dict = {}
+        time_frmt = '%c'
+        if post:
+            dict["title"] = post.title
+            dict["content"] = post.content
+            dict["time"] = post.time.strftime(time_frmt)
+            json_text = json.dumps(dict)
+            self.response.headers['Content-Type'] = 'application/json; charset=UTF-8'
+            self.write(json_text)
+        else:
+            self.error(404)
+
+
 app = webapp2.WSGIApplication([
     ('/', MainHandler),
     ('/rot13', RotHandler),
@@ -429,5 +467,7 @@ app = webapp2.WSGIApplication([
     ('/welcome', WelcomeHandler),
     ('/login', LoginHandler),
     ('/logout', LogoutHandler),
-    ('/asciichan2', AsciiChan2Handler)
+    ('/asciichan2', AsciiChan2Handler),
+    ('/.json', BlogToJSONHandler),
+    ('/([0-9]+)(?:\.json)', PermalinkToJSONHandler)
 ], debug=True)
