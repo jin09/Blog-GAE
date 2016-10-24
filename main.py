@@ -16,6 +16,9 @@
 #
 import random
 import string
+import urllib2
+from xml.dom import minidom
+
 import webapp2
 import jinja2
 import os
@@ -347,6 +350,74 @@ class AsciiChanHandler(Handler):
             self.render_front(title, asciiart, error)
 
 
+link = "http://freegeoip.net/xml/"
+
+
+def get_coordinates(ip):
+    try:
+        content = urllib2.urlopen(link + ip).read()
+    except:
+        print "error fetching url"
+
+    if content:
+        xml = minidom.parseString(content)
+        lat = xml.getElementsByTagName("Latitude")[0].childNodes[0].nodeValue
+        long = xml.getElementsByTagName("Longitude")[0].childNodes[0].nodeValue
+        x = "%s,%s" % (str(lat), str(long))
+        return x
+
+
+map_link = "https://maps.googleapis.com/maps/api/staticmap?size=600x300&maptype=roadmap&key=AIzaSyDl70HmW2bLaafCiwtlDdM5cA1cZr-nJzA"
+marker = "&markers=color:red%7Clabel:C%7C"
+
+
+def create_map_link():
+    all = db.GqlQuery("select * from Arts2")
+    final_str = map_link
+    for i in all:
+        lat = str(i.coords).split(',')[0]
+        lng = str(i.coords).split(',')[1]
+        if not (lat == "0" and lng == "0"):
+            mark = marker
+            mark = mark + lat + "," + lng
+            final_str = final_str + mark
+    return final_str
+
+
+class Arts2(db.Model):
+    title = db.StringProperty(required=True)
+    art = db.TextProperty(required=True)
+    created = db.DateTimeProperty(auto_now_add=True)
+    coords = db.StringProperty(required=True)
+
+
+class AsciiChan2Handler(Handler):
+    def render_front(self, title="", art="", error=""):
+        arts = db.GqlQuery("select * from Arts2 order by created desc limit 10")
+        cords = []
+        for i in arts:
+            cords.append(str(i.coords))
+
+        map_url = create_map_link()
+        # self.response.write(map_url)
+        self.render("asciichan2.html", title=title, art=art, error=error, arts=arts, map_url=map_url, cords=cords)
+
+    def get(self):
+        self.render_front()
+
+    def post(self):
+        title = self.request.get("title")
+        art = self.request.get("art")
+        coords = get_coordinates(str(self.request.remote_addr))
+        if title and art and coords:
+            a = Arts2(title=title, art=art, coords=coords)
+            a.put()
+            self.redirect('/asciichan2')
+        else:
+            error = "Enter both title and art"
+            self.render_front(title=title, art=art, error=error)
+
+
 app = webapp2.WSGIApplication([
     ('/', MainHandler),
     ('/rot13', RotHandler),
@@ -357,5 +428,6 @@ app = webapp2.WSGIApplication([
     ('/newpost', NewPostHandler),
     ('/welcome', WelcomeHandler),
     ('/login', LoginHandler),
-    ('/logout', LogoutHandler)
+    ('/logout', LogoutHandler),
+    ('/asciichan2', AsciiChan2Handler)
 ], debug=True)
