@@ -394,20 +394,18 @@ class Arts2(db.Model):
     coords = db.StringProperty(required=True)
 
 
-cache = {}
-
-
 def get_arts(update=False):
     key = "arts"
-    if key in cache and update is False:
+    arts = memcache.get(key)
+    if arts and update is False:
         logging.error("CACHE HIT!!!")
-        return cache[key]
+        return arts
     else:
         logging.error("DATABASE IS HIT!!!!!!!!")
         arts = db.GqlQuery("select * from Arts2 order by created desc limit 10")
         arts = list(arts)
-        cache[key] = arts
-        return cache[key]
+        memcache.set(key, arts)
+        return arts
 
 
 class AsciiChan2Handler(Handler):
