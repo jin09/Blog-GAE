@@ -15,11 +15,13 @@
 # limitations under the License.
 #
 import json
+import logging
 import random
 import string
 import urllib2
 from xml.dom import minidom
-
+from datetime import datetime, timedelta
+from google.appengine.api import memcache
 import webapp2
 import jinja2
 import os
@@ -391,10 +393,25 @@ class Arts2(db.Model):
     created = db.DateTimeProperty(auto_now_add=True)
     coords = db.StringProperty(required=True)
 
+cache = {}
+
+
+def get_arts():
+    key = "arts"
+    if key in cache:
+        logging.error("CACHE HIT!!!")
+        return cache[key]
+    else:
+        logging.error("DATABASE IS HIT!!!!!!!!")
+        arts = db.GqlQuery("select * from Arts2 order by created desc limit 10")
+        arts = list(arts)
+        cache[key] = arts
+        return cache[key]
+
 
 class AsciiChan2Handler(Handler):
     def render_front(self, title="", art="", error=""):
-        arts = db.GqlQuery("select * from Arts2 order by created desc limit 10")
+        arts = get_arts()
         cords = []
         for i in arts:
             cords.append(str(i.coords))
