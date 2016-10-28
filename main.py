@@ -393,6 +393,7 @@ class Arts2(db.Model):
     created = db.DateTimeProperty(auto_now_add=True)
     coords = db.StringProperty(required=True)
 
+
 cache = {}
 
 
@@ -430,6 +431,8 @@ class AsciiChan2Handler(Handler):
         if title and art and coords:
             a = Arts2(title=title, art=art, coords=coords)
             a.put()
+            cache.clear()
+            logging.error("cache cleared !!!!")
             self.redirect('/asciichan2')
         else:
             error = "Enter both title and art"
