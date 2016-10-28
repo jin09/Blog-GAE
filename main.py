@@ -397,9 +397,9 @@ class Arts2(db.Model):
 cache = {}
 
 
-def get_arts():
+def get_arts(update=False):
     key = "arts"
-    if key in cache:
+    if key in cache and update is False:
         logging.error("CACHE HIT!!!")
         return cache[key]
     else:
@@ -431,7 +431,8 @@ class AsciiChan2Handler(Handler):
         if title and art and coords:
             a = Arts2(title=title, art=art, coords=coords)
             a.put()
-            cache.clear()
+            #cache.clear()
+            get_arts(True)
             logging.error("cache cleared !!!!")
             self.redirect('/asciichan2')
         else:
