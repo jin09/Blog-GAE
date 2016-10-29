@@ -131,10 +131,27 @@ class Handler(webapp2.RequestHandler):
         self.write(self.render_str(template, **kw))
 
 
+def get_posts(update=False):
+    key = "posts"
+    time_key = "time"
+    if memcache.get(key) and memcache.get(time_key) and update is False:
+        logging.error("memcache is hit for posts !!")
+        return memcache.get(key), memcache.get(time_key)
+    else:
+        logging.error("database is hit")
+        posts = db.GqlQuery("select * from Post order by time desc limit 10")
+        posts = list(posts)
+        memcache.set(key, posts)
+        current_time = datetime.utcnow()
+        memcache.set(time_key, current_time)
+        return posts, current_time
+
+
 class MainHandler(Handler):
     def render_blog(self):
-        posts = db.GqlQuery("select * from Post order by time desc limit 10")
-        self.render("blog.html", list_of_post=posts)
+        posts, save_time = get_posts()
+        age = (datetime.utcnow() - save_time).total_seconds()
+        self.render("blog.html", list_of_post=posts, age=age)
 
     def get(self):
         self.render_blog()
@@ -152,15 +169,31 @@ class RotHandler(Handler):
         self.render("rot13.html", text=rot13)
 
 
+def get_specific_post(key):
+    keystr = str(key)
+    time_key = "time"
+    if memcache.get(keystr) and memcache.get(time_key):
+        logging.error(("Memcache is hit!!"))
+        return memcache.get(keystr), memcache.get(time_key)
+    else:
+        logging.error("Database is HIT")
+        post = db.get(key)
+        memcache.set(keystr, post)
+        current_time = datetime.utcnow()
+        memcache.set(time_key, current_time)
+        return post, current_time
+
+
 class PermalinkHandler(Handler):
     def get(self, post_id):
         key = db.Key.from_path('Post', int(post_id))
         # print key
-        post = db.get(key)
+        post, saved_time = get_specific_post(key)
         # print post
 
-        if post:
-            self.render("permalink.html", post=post)
+        if post and saved_time:
+            age = (datetime.utcnow() - saved_time).total_seconds()
+            self.render("permalink.html", post=post, age=age)
         else:
             self.error(404)
 
@@ -185,6 +218,7 @@ class NewPostHandler(Handler):
         if title and content:
             p = Post(title=title, content=content)
             p.put()
+            get_posts(True)
             self.redirect("/%s" % str(p.key().id()))
 
         else:
@@ -475,6 +509,12 @@ class PermalinkToJSONHandler(Handler):
             self.error(404)
 
 
+class FlushMemcacheHandler(Handler):
+    def get(self):
+        memcache.flush_all()
+        self.redirect('/')
+
+
 app = webapp2.WSGIApplication([
     ('/', MainHandler),
     ('/rot13', RotHandler),
@@ -488,5 +528,6 @@ app = webapp2.WSGIApplication([
     ('/logout', LogoutHandler),
     ('/asciichan2', AsciiChan2Handler),
     ('/.json', BlogToJSONHandler),
-    ('/([0-9]+)(?:\.json)', PermalinkToJSONHandler)
+    ('/([0-9]+)(?:\.json)', PermalinkToJSONHandler),
+    ('/flush', FlushMemcacheHandler)
 ], debug=True)
